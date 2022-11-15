@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Http;
 
-class CompanyController extends Controller
+class CompanyContactController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -37,46 +37,15 @@ class CompanyController extends Controller
     public function store(Request $request)
     {
         $hapiKey = env('API_KEY_HUBSPOT', null);
-
-        $entityEndpoint = \App\Models\Endpoint::firstWhere('url', 'http://integraciones-cebra.test/api/company/store');
-
         $array = $request->all();
-        $properties = [];
-
-        //Propiedades que no se agregaran al formato en properties
-        $propertiesNotInclude = ['contactId'];
-
-        foreach ($array as $name => $value) {
-            $propertiesIsNotInclude = in_array($name, $propertiesNotInclude);
-            if (!$propertiesIsNotInclude) {
-                array_push(
-                    $properties,
-                    [
-                        'name' => $name,
-                        'value' => $value
-                    ]
-                );
-            }
-        }
-
-        $arrayHS = ['properties' => $properties];
-        $responseCompany = Http::post('https://api.hubapi.com/companies/v2/companies?hapikey=' . $hapiKey, $arrayHS);
-        #Guarda log si la peticion falla
-        if ($responseCompany->status() !== 200) {
-            $entityLog = new \App\Models\Log;
-            $entityLog->request_body = json_encode($request->all());
-            $entityLog->endpoint_id = $entityEndpoint["id"];
-            $entityLog->request_result = $responseCompany;
-            $entityLog->result_code = $responseCompany->status();
-            $entityLog->save();
-        }
-        #Se registra una fila por cada petición
-        $entityRequest = new \App\Models\Request;
-        $entityRequest->result = $responseCompany->status();
-        $entityRequest->endpoint_id = $entityEndpoint["id"];
-        $entityRequest->save();
-        #fin
-
+        #Asociar company con contacto
+        $arrayObjectAssociation = [
+            "fromObjectId" => $array["companyId"],
+            "toObjectId" => $array['contactId'],
+            "category" => "HUBSPOT_DEFINED",
+            "definitionId" => 2
+        ];
+        $responseCompany = Http::put('https://api.hubapi.com/crm-associations/v1/associations?hapikey=' . $hapiKey, $arrayObjectAssociation);
         
         return $responseCompany;
     }

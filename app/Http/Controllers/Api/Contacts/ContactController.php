@@ -35,17 +35,40 @@ class ContactController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
+    
+
     public function store(Request $request)
     {
+        $Token = 'pat-na1-6def417c-2dbc-476b-bde6-82be18e0a04f';
+
+        $entityEndpoint = \App\Models\Endpoint::firstWhere('url', 'http://integraciones-cebra.test/api/contact/store');
+
+        $array = $request->all();
+        $properties = $array;
+       
+        $arrayHS = ['properties' => $properties];
+ 
+        $response = Http::withToken($Token)->post('https://api.hubapi.com/crm/v3/objects/contacts', $arrayHS);
+        #Guarda log si la peticion falla
+        if ($response->status() !== 200) {
+            $entityLog = new \App\Models\Log;
+            $entityLog->request_body = json_encode($request->all());
+            $entityLog->endpoint_id = $entityEndpoint["id"];
+            $entityLog->request_result = $response;
+            $entityLog->result_code = $response->status();
+            $entityLog->save();
+        }
         #Se registra una fila por cada petición
-        $request = new \App\Models\Request;
-        $request->result = '200';
-        $request->endpoint_id = '1';
-        $request->save();
+        $entityRequest = new \App\Models\Request;
+        $entityRequest->result = $response->status();
+        $entityRequest->endpoint_id = $entityEndpoint["id"];
+        $entityRequest->save();
         #fin
 
-        return '200';
+        return $response;
     }
+
+    
 
     /**
      * Display the specified resource.
